@@ -7,9 +7,9 @@ const communitySchema = new schema({
         type: String,
         required: true
     },
-    // avatar: {
-    //     type: String
-    // },
+    image: {
+        type: String
+    },
     bio: {
         type: String,
         required: true

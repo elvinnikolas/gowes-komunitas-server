@@ -15,6 +15,9 @@ const memberSchema = new schema({
         type: String,
         required: true
     },
+    message: {
+        type: String
+    },
     isAdmin: {
         type: Boolean,
         required: true

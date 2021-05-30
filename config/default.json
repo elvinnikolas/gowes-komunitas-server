@@ -1,4 +1,4 @@
 {
   "mongoURI": "mongodb+srv://admin:admin@genesis-9bttj.mongodb.net/test?retryWrites=true&w=majority",
-  "jwtSecret": "notmybusiness"
+  "jwtSecret": "genesis-9bttj"
 }

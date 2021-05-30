@@ -4,19 +4,16 @@ module.exports = gql`
     # TYPE
     type Post {
         _id: ID!
-        user: ID!
+        user: User!
         community: Community!
-        name: String!
         title: String!
         date: String!
         content: String!
+        images: [String]
         likes: [Like]!
         dislikes: [Dislike]!
         comments: [Comment]!
         bookmarks: [Bookmark]!
-        # likesCount: Int!
-        # dislikesCount: Int!
-        # commentsCount: Int!
     }
 
     type Like {
@@ -37,20 +34,21 @@ module.exports = gql`
 
     type Comment {
         _id: ID!
-        user: ID!
-        name: String!
+        user: User!
         date: String!
         comment: String!
     }
 
     type User {
         _id: ID!
-        name: String!
-        username: String!
+        name: String
+        username: String
         bio: String
         email: String!
         password: String!
+        image: String
         date: String!
+        isAdmin: Boolean
         token: String!
     }
 
@@ -61,6 +59,7 @@ module.exports = gql`
         date: String!
         city: String!
         province: String!
+        image: String!
         isPrivate: Boolean!
         isActive: Boolean!
         memberCount: Int!
@@ -71,6 +70,7 @@ module.exports = gql`
         community: Community!
         user: User!
         date: String!
+        message: String
         isAdmin: Boolean!
         isJoin: Boolean!
         isRequest: Boolean!
@@ -83,12 +83,56 @@ module.exports = gql`
         date: String!
         city: String!
         province: String!
+        image: String!
         isPrivate: Boolean!
         isActive: Boolean!
         memberCount: Int!
         isAdmin: Boolean!
         isJoin: Boolean!
         isRequest: Boolean!
+    }
+
+    type Faq {
+        _id: ID!
+        category: String!
+        contents: [Content]
+    }
+
+    type Content {
+        _id: ID!
+        question: String!
+        answer: String!
+    }
+
+    type Status {
+        _id: ID!
+        user: ID!
+        read: Boolean!
+    }
+
+    type Chat {
+        _id: ID!
+        users: [User]!
+        lastMessage: String!,
+        sent: String!,
+        status: [Status]!
+    }
+
+    type Message {
+        _id: ID!
+        chat: ID!
+        from: ID!
+        to: ID!
+        content: String!
+        sent: String!
+    }
+
+    type Notification {
+        _id: ID!
+        community: Community
+        user: User!
+        content: String!
+        date: String!
     }
 
     # INPUT
@@ -101,6 +145,7 @@ module.exports = gql`
     input ProfileInput {
         name: String!
         bio: String!
+        image: String!
     }
 
     input CommunityInput {
@@ -108,7 +153,12 @@ module.exports = gql`
         bio: String!
         city: String!
         province: String!
+        image: String!
         isPrivate: Boolean!
+    }
+
+    input ImageInput {
+        url: String!
     }
 
     # QUERY
@@ -116,9 +166,10 @@ module.exports = gql`
         # post
         getPosts: [Post]
         getPost(postId: ID!): Post
-        getBookmarkPosts: [Post]
-        getUserCommunityPosts(communityId: ID!): [Post]
-        getUserCommunitiesPosts: [Post]
+        getBookmarkPosts(filter: String): [Post]
+        getUserCommunityPosts(communityId: ID!, filter: String!): [Post]
+        getUserCommunitiesPosts(filter: String): [Post]
+        getExplorePosts(filter: String): [Post]
 
         # user
         getUser(id: ID!): User
@@ -126,6 +177,8 @@ module.exports = gql`
 
         # community
         getCommunities: [Community]
+        getApproveCommunities: [Community]
+        getFilterCommunities(filter: String, location: String, sort: String): [Community]
         getCommunity(communityId: ID!): Community
         getCommunityPosts(communityId: ID!): [Post]
         getCommunityMembers(communityId: ID!): [Member]
@@ -133,6 +186,18 @@ module.exports = gql`
         getUserCommunities(userId: ID!): [Member]
         getCommunityAndMemberStatus(userId: ID!, communityId: ID!): CommunityAndMemberStatus
         getMemberStatus(userId: ID!, communityId: ID!): Member
+
+        # faq
+        getFaqs: [Faq]
+
+        #chat
+        getChats: [Chat]
+
+        #message
+        getMessages(chatId: ID!): [Message]
+
+        #notification
+        getNotifications(id: ID!): [Notification]
     }
 
     # MUTATION
@@ -155,7 +220,8 @@ module.exports = gql`
         createPost(
             title: String!,
             content: String!,
-            communityId: ID!
+            communityId: ID!,
+            images: [String]
         ) : Post!
 
         deletePost(
@@ -189,8 +255,17 @@ module.exports = gql`
             communityInput: CommunityInput
         ) : Community
 
+        approveCommunity(
+            communityId: ID!
+        ) : String
+
+        disapproveCommunity(
+            communityId: ID!
+        ) : String
+
         requestJoinCommunity(
             communityId: ID!
+            message: String
         ) : Member!
 
         joinCommunity(
@@ -224,5 +299,37 @@ module.exports = gql`
         deleteCommunityPost(
             postId: ID!
         ) : String!
+
+        #faq
+        addFaq(
+            category: String!
+            question: String!
+            answer: String!
+        ) : Faq
+
+        addFaqCategory(
+            category: String!
+        ) : Faq
+
+        removeFaq(
+            category: String!
+        ) : String!
+
+        #message
+        sendMessage(
+            chatId: ID! 
+            to: ID!
+            content: String!
+        ): Message
+
+        #chat
+        newChat(
+            to: ID!
+        ): Chat
+    }
+
+    #SUBSCRIPTION
+    type Subscription {
+        newMessage: Message!
     }
 `

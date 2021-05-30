@@ -1,11 +1,12 @@
 const Post = require('../../models/Post')
+const Member = require('../../models/Member')
 const auth = require('../../utils/auth')
 
 module.exports = {
     Query: {
         async getPosts() {
             try {
-                const posts = await Post.find().sort({ date: -1 }).populate('community')
+                const posts = await Post.find().sort({ date: -1 }).populate('community user').populate('comments.user')
                 return posts
 
             } catch (error) {
@@ -15,7 +16,7 @@ module.exports = {
 
         async getPost(_, { postId }) {
             try {
-                const post = await Post.findById(postId).populate('community')
+                const post = await Post.findById(postId).populate('community user').populate('comments.user')
 
                 if (!post) {
                     throw new Error('Post not found')
@@ -27,11 +28,17 @@ module.exports = {
             }
         },
 
-        async getBookmarkPosts(_, { }, context) {
+        async getBookmarkPosts(_, { filter }, context) {
             const payload = auth(context)
+            let posts
 
             try {
-                const posts = await Post.find({ 'bookmarks.user': payload._id }).sort({ 'bookmarks.date': -1 }).populate('community')
+                if (filter == 'post') {
+                    posts = await Post.find({ 'bookmarks.user': payload._id }).sort({ date: -1 }).populate('community user').populate('comments.user')
+                } else {
+                    posts = await Post.find({ 'bookmarks.user': payload._id }).sort({ 'bookmarks.date': -1 }).populate('community user').populate('comments.user')
+
+                }
                 return posts
 
             } catch (error) {
@@ -39,7 +46,7 @@ module.exports = {
             }
         },
 
-        async getUserCommunitiesPosts(_, { }, context) {
+        async getUserCommunitiesPosts(_, { filter }, context) {
             const payload = auth(context)
             const communities = await Member.find({ user: payload._id, isJoin: true })
 
@@ -49,11 +56,32 @@ module.exports = {
             });
 
             try {
-                posts = await Post.find({
-                    community: {
-                        $in: communitiesId
-                    }
-                }).populate('community')
+                let posts
+                if (filter == 'recent') {
+                    posts = await Post.find({
+                        community: {
+                            $in: communitiesId
+                        }
+                    }).sort({ date: -1 }).populate('community user').populate('comments.user')
+                } else if (filter == 'popular') {
+                    posts = await Post.find({
+                        community: {
+                            $in: communitiesId
+                        }
+                    }).sort({ likesCount: -1 }).populate('community user').populate('comments.user')
+                } else if (filter == 'comment') {
+                    posts = await Post.find({
+                        community: {
+                            $in: communitiesId
+                        }
+                    }).sort({ commentsCount: -1 }).populate('community user').populate('comments.user')
+                } else {
+                    posts = await Post.find({
+                        community: {
+                            $in: communitiesId
+                        }
+                    }).populate('community user').populate('comments.user')
+                }
 
                 return posts
 
@@ -62,10 +90,180 @@ module.exports = {
             }
         },
 
-        async getUserCommunityPosts(_, { communityId }) {
+        async getUserCommunityPosts(_, { communityId, filter }) {
 
             try {
-                const posts = await Post.find({ community: communityId }).populate('community')
+                let posts
+                if (filter == 'recent') {
+                    posts = await Post.find({ community: communityId }).sort({ date: -1 }).populate('community user').populate('comments.user')
+                } else if (filter == 'popular') {
+                    posts = await Post.find({ community: communityId }).sort({ likesCount: -1 }).populate('community user').populate('comments.user')
+                } else if (filter == 'comment') {
+                    posts = await Post.find({ community: communityId }).sort({ commentsCount: -1 }).populate('community user').populate('comments.user')
+                }
+
+                return posts
+
+            } catch (error) {
+                throw new Error(error)
+            }
+        },
+
+        async getExplorePosts(_, { filter }) {
+            let today = new Date()
+            let month = today.getMonth() + 1
+            let year = today.getFullYear()
+            month = month.toString()
+            year = year.toString()
+
+            if (month < 10) {
+                month = '0' + month
+            }
+
+            try {
+                let posts
+                if (filter == 'recent') {
+                    posts = await Post.aggregate(
+                        [
+                            {
+                                '$addFields': {
+                                    'month': {
+                                        '$substr': [
+                                            '$date', 5, 2
+                                        ]
+                                    },
+                                    'year': {
+                                        '$substr': [
+                                            '$date', 0, 4
+                                        ]
+                                    }
+                                }
+                            }, {
+                                '$match': {
+                                    'month': month,
+                                    'year': year
+                                }
+                            }, {
+                                '$lookup': {
+                                    'from': 'communities',
+                                    'localField': 'community',
+                                    'foreignField': '_id',
+                                    'as': 'community_docs'
+                                }
+                            }, {
+                                '$unwind': {
+                                    'path': '$community_docs'
+                                }
+                            }, {
+                                '$lookup': {
+                                    'from': 'users',
+                                    'localField': 'user',
+                                    'foreignField': '_id',
+                                    'as': 'user_docs'
+                                }
+                            }, {
+                                '$unwind': {
+                                    'path': '$user_docs'
+                                }
+                            }, {
+                                '$project': {
+                                    '_id': 1,
+                                    'user': {
+                                        '$mergeObjects': '$user_docs'
+                                    },
+                                    'title': 1,
+                                    'date': 1,
+                                    'content': 1,
+                                    'images': 1,
+                                    'likes': 1,
+                                    'dislikes': 1,
+                                    'comments': 1,
+                                    'bookmarks': 1,
+                                    'community': {
+                                        '$mergeObjects': '$community_docs'
+                                    }
+                                }
+                            }, {
+                                '$sort': {
+                                    'date': -1
+                                }
+                            }, {
+                                '$limit': 20
+                            }
+                        ]
+                    )
+                } else if (filter == 'popular') {
+                    posts = await Post.aggregate(
+                        [
+                            {
+                                '$addFields': {
+                                    'month': {
+                                        '$substr': [
+                                            '$date', 5, 2
+                                        ]
+                                    },
+                                    'year': {
+                                        '$substr': [
+                                            '$date', 0, 4
+                                        ]
+                                    }
+                                }
+                            }, {
+                                '$match': {
+                                    'month': month,
+                                    'year': year
+                                }
+                            }, {
+                                '$lookup': {
+                                    'from': 'communities',
+                                    'localField': 'community',
+                                    'foreignField': '_id',
+                                    'as': 'community_docs'
+                                }
+                            }, {
+                                '$unwind': {
+                                    'path': '$community_docs'
+                                }
+                            }, {
+                                '$lookup': {
+                                    'from': 'users',
+                                    'localField': 'user',
+                                    'foreignField': '_id',
+                                    'as': 'user_docs'
+                                }
+                            }, {
+                                '$unwind': {
+                                    'path': '$user_docs'
+                                }
+                            }, {
+                                '$project': {
+                                    '_id': 1,
+                                    'user': {
+                                        '$mergeObjects': '$user_docs'
+                                    },
+                                    'title': 1,
+                                    'date': 1,
+                                    'content': 1,
+                                    'images': 1,
+                                    'likes': 1,
+                                    'dislikes': 1,
+                                    'comments': 1,
+                                    'bookmarks': 1,
+                                    'community': {
+                                        '$mergeObjects': '$community_docs'
+                                    }
+                                }
+                            }, {
+                                '$sort': {
+                                    'likesCount': -1
+                                }
+                            }, {
+                                '$limit': 20
+                            }
+                        ]
+                    )
+                }
+
                 return posts
 
             } catch (error) {
@@ -75,7 +273,7 @@ module.exports = {
     },
 
     Mutation: {
-        async createPost(_, { title, content, communityId }, context) {
+        async createPost(_, { title, content, communityId, images }, context) {
             const payload = auth(context)
 
             if ((title.trim() == '') || (content.trim() == '')) {
@@ -87,8 +285,10 @@ module.exports = {
                     title,
                     content,
                     user: payload._id,
-                    name: payload.name,
                     community: communityId,
+                    images: images,
+                    likesCount: 0,
+                    commentsCount: 0,
                     date: new Date().toISOString()
                 }
 
@@ -108,13 +308,8 @@ module.exports = {
                 const post = await Post.findById(postId)
 
                 if (post) {
-                    if (post.user.toString() === payload._id) {
-                        await post.remove()
-                        return 'Post deleted successfully'
-                    }
-                    else {
-                        throw new Error('Invalid user')
-                    }
+                    await post.remove()
+                    return 'Post deleted successfully'
 
                 } else {
                     throw new Error('Invalid post')
@@ -139,12 +334,17 @@ module.exports = {
                     const newComment = {
                         comment,
                         user: payload._id,
-                        name: payload.name,
                         date: new Date().toISOString()
                     }
 
                     post.comments.unshift(newComment)
                     await post.save()
+
+                    await Post.findOneAndUpdate(
+                        { _id: postId },
+                        { $inc: { commentsCount: 1 } },
+                        { new: true }
+                    )
                     return post
 
                 } else {
@@ -168,14 +368,20 @@ module.exports = {
                     throw new Error('Comment not found')
                 }
 
-                else if (comment.user.toString() !== userId) {
-                    throw new Error('User not authorized')
-                }
+                // else if (comment.user.toString() !== userId) {
+                //     throw new Error('User not authorized')
+                // }
 
                 else {
                     const removeIndex = post.comments.findIndex(comment => comment.id === commentId)
                     post.comments.splice(removeIndex, 1)
                     await post.save()
+
+                    await Post.findOneAndUpdate(
+                        { _id: postId },
+                        { $inc: { commentsCount: -1 } },
+                        { new: true }
+                    )
                     return post
                 }
 
@@ -195,8 +401,20 @@ module.exports = {
                     const removeIndex = post.likes.findIndex(like => like.user.toString() === userId)
                     post.likes.splice(removeIndex, 1)
 
+                    await Post.findOneAndUpdate(
+                        { _id: postId },
+                        { $inc: { likesCount: -1 } },
+                        { new: true }
+                    )
+
                 } else {
                     post.likes.unshift({ user: userId })
+
+                    await Post.findOneAndUpdate(
+                        { _id: postId },
+                        { $inc: { likesCount: 1 } },
+                        { new: true }
+                    )
 
                     if (post.dislikes.find(dislike => dislike.user.toString() === userId)) {
                         const removeIndex = post.dislikes.findIndex(dislike => dislike.user.toString() === userId)
@@ -223,8 +441,20 @@ module.exports = {
                     const removeIndex = post.dislikes.findIndex(dislike => dislike.user.toString() === userId)
                     post.dislikes.splice(removeIndex, 1)
 
+                    await Post.findOneAndUpdate(
+                        { _id: postId },
+                        { $inc: { likesCount: 1 } },
+                        { new: true }
+                    )
+
                 } else {
                     post.dislikes.unshift({ user: userId })
+
+                    await Post.findOneAndUpdate(
+                        { _id: postId },
+                        { $inc: { likesCount: -1 } },
+                        { new: true }
+                    )
 
                     if (post.likes.find(like => like.user.toString() === userId)) {
                         const removeIndex = post.likes.findIndex(like => like.user.toString() === userId)

@@ -11,9 +11,6 @@ const postSchema = new schema({
         type: schema.Types.ObjectId,
         ref: 'community'
     },
-    name: {
-        type: String
-    },
     avatar: {
         type: String
     },
@@ -30,6 +27,15 @@ const postSchema = new schema({
     content: {
         type: String,
         required: true
+    },
+    images: [{
+        type: String
+    }],
+    likesCount: {
+        type: Number
+    },
+    commentsCount: {
+        type: Number
     },
     likes: [{
         user: {
@@ -63,9 +69,6 @@ const postSchema = new schema({
         comment: {
             type: String,
             required: true
-        },
-        name: {
-            type: String
         },
         avatar: {
             type: String
