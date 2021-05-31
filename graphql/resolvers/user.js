@@ -123,6 +123,7 @@ module.exports = {
                 email,
                 password,
                 bio: '',
+                isAdmin: false,
                 image: 'https://firebasestorage.googleapis.com/v0/b/gowes-community.appspot.com/o/profile%2Fprofile.jpg?alt=media&token=f4906486-2686-47e8-95a9-68719f51e05f',
                 date: new Date().toISOString()
             })
@@ -131,12 +132,10 @@ module.exports = {
 
             //create jwt token
             const payload = {
-                user: {
-                    _id: user.id,
-                    name: user.name,
-                    image: user.image,
-                    isAdmin: user.isAdmin
-                }
+                _id: user.id,
+                name: user.name,
+                image: user.image,
+                isAdmin: user.isAdmin
             }
             const jwtSecret = config.get('jwtSecret')
 

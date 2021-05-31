@@ -7,6 +7,9 @@ const faqSchema = new schema({
         type: String
     },
     contents: [{
+        image: {
+            type: String
+        },
         question: {
             type: String
         },

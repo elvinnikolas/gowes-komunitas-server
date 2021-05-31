@@ -42,7 +42,7 @@ module.exports = {
 
         },
 
-        async addFaq(_, { category, question, answer }) {
+        async addFaq(_, { category, image, question, answer }) {
 
             if ((question.trim() == '') || (answer.trim() == '')) {
                 throw new Error('All field must be filled')
@@ -52,7 +52,7 @@ module.exports = {
                 const faq = await Faq.findOne({ category: category })
 
                 if (faq) {
-                    faq.contents.push({ question: question, answer: answer })
+                    faq.contents.push({ image: image, question: question, answer: answer })
                 } else {
                     throw new Error('Invalid category')
                 }

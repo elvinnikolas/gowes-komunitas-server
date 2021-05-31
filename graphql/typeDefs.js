@@ -100,6 +100,7 @@ module.exports = gql`
 
     type Content {
         _id: ID!
+        image: String
         question: String!
         answer: String!
     }
@@ -303,6 +304,7 @@ module.exports = gql`
         #faq
         addFaq(
             category: String!
+            image: String
             question: String!
             answer: String!
         ) : Faq
